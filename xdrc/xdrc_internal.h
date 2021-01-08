@@ -115,7 +115,7 @@ struct rpc_ufield {
 
 struct rpc_union {
   string id;
-  string tagtype;
+  string tagtype; 
   string tagid;
   vec<rpc_ufield> fields;
   bool hasdefault{false};
@@ -247,6 +247,9 @@ string strip_suffix(string in, string suffix);
 void gen_hh(std::ostream &os);
 void gen_server(std::ostream &os);
 void gen_servercc(std::ostream &os);
+void gen_pxd(std::ostream &os);
+void gen_pyx(std::ostream &os, const std::string& file_prefix);
+void gen_pxdi(std::ostream& os, const std::string& file_prefix);
 
 extern string input_file;
 extern string output_file;
@@ -254,6 +257,7 @@ extern string file_prefix;
 extern string server_session;
 extern bool server_ptr;
 extern bool server_async;
+extern bool pxdi_union_helper_methods;
 
 template <typename T>
 struct omanip {

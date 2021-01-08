@@ -19,6 +19,8 @@ string file_prefix;
 string server_session;
 bool server_ptr;
 bool server_async;
+bool pxdi_union_helper_methods;
+
 
 string
 guard_token(const string &extra)
@@ -105,14 +107,22 @@ enum opttag {
   OPT_HH,
   OPT_SERVERHH,
   OPT_SERVERCC,
+  OPT_PXD_INCLUDE,
+  OPT_PXD,
+  OPT_PYX,
+  OPT_HH_PY,
 };
 
 static const struct option xdrc_options[] = {
   {"version", no_argument, nullptr, OPT_VERSION},
   {"help", no_argument, nullptr, OPT_HELP},
   {"hh", no_argument, nullptr, OPT_HH},
+  {"hhpy", no_argument, nullptr, OPT_HH_PY},
   {"serverhh", no_argument, nullptr, OPT_SERVERHH},
   {"servercc", no_argument, nullptr, OPT_SERVERCC},
+  {"pxdi", no_argument, nullptr, OPT_PXD_INCLUDE},
+  {"pxd", no_argument, nullptr, OPT_PXD},
+  {"pyx", no_argument, nullptr, OPT_PYX},
   {"ptr", no_argument, nullptr, 'p'},
   {"session", required_argument, nullptr, 's'},
   {"async", no_argument, nullptr, 'a'},
@@ -127,6 +137,10 @@ main(int argc, char **argv)
   void (*gen)(std::ostream &) = nullptr;
   string suffix;
   bool noclobber = false;
+
+  bool pxd = false;
+  bool pyx = false;
+  bool pxd_include = false;
 
   int opt;
   while ((opt = getopt_long_only(argc, argv, "D:ao:ps:",
@@ -171,6 +185,25 @@ main(int argc, char **argv)
       cpp_command += " -DXDRC_HH=1";
       suffix = ".hh";
       break;
+    case OPT_PXD_INCLUDE:
+      cpp_command += " -DXDRC_PXDI=1";
+      suffix = "_includes.pxd";
+      pxd_include = true;
+      break;
+    case OPT_PXD:
+      cpp_command += " -DXDRC_PXD=1";
+      suffix = "_xdr.pxd";
+      pxd = true;
+      break;
+    case OPT_PYX:
+      cpp_command += " -DXDRC_PYX=1";
+      suffix = "_xdr.pyx";
+      pyx = true;
+      break;
+    case OPT_HH_PY:
+      cpp_command += " -DXDRC_HH_PY=1";
+      pxdi_union_helper_methods = true;
+      break;
     case 'p':
       server_ptr = true;
       break;
@@ -187,7 +220,7 @@ main(int argc, char **argv)
 
   if (optind + 1 != argc)
     usage();
-  if (!gen) {
+  if (!gen && !pxd && !pyx && !pxd_include) {
     cerr << "xdrc: missing mode specifier (e.g., -hh)" << endl;
     usage();
   }
@@ -237,7 +270,16 @@ main(int argc, char **argv)
   else {
     std::ofstream out(output_file);
     if (out.is_open())
-      gen(out);
+
+      if (pxd) {
+        gen_pxd(out);
+      } else if (pyx) {
+        gen_pyx(out, file_prefix);
+      } else if (pxd_include) {
+        gen_pxdi(out, file_prefix);
+      } else {
+        gen(out);
+      }
     else {
       perror(output_file.c_str());
       exit(1);

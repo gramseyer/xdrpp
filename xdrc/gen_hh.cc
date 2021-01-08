@@ -567,6 +567,20 @@ gen(std::ostream &os, const rpc_union &u)
 	 << nl.close << "}";
   }
 
+  if (pxdi_union_helper_methods) {
+    for (const auto &f : u.fields) {
+      if (f.decl.type == "void")
+        continue;
+
+      os << nl << "void pxdi_set_" << f.decl.id << "(const " << decl_type(f.decl) << "& object) {"
+      << nl.open << f.decl.id << "() = object;"
+      << nl.close << "}";
+    }
+  }
+
+
+  //TODO modify here
+
   top_material
     << "template<> struct xdr_traits<" << cur_scope()
     << "> : xdr_traits_base {" << endl
