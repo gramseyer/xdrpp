@@ -599,6 +599,23 @@ void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const
     os << nl << "return deref(self.ptr)";
   --nl;
 
+ // os << nl << "cdef bool equals(" << clobbered_classname << " self, " << clobbered_classname << " other):";
+ // ++nl;
+ //   os << nl << "return deref(self.ptr) == deref(other.ptr)";
+ // --nl;
+
+  /*os << nl << "def __eq__(self, other):";
+  ++nl;
+    gen_null_check_pyx();
+    gen_null_check_pyx("other");
+    os << nl << "return self.equals(other)";
+  --nl;
+
+  os << nl << "def __ne__(self, other):";
+  ++nl;
+    os << nl << "return not self.__eq__(other)";
+  --nl;*/
+
   gen_general_from_ptr_pyx(os, classname, qualified_name);
 }
 
@@ -637,6 +654,8 @@ void gen_pointer_class_pxd(std::ostream& os, const string& classname, const stri
   //os << nl << "cdef void null_check(" << clobbered_classname << " self) except -1";
 
   os << nl << "cdef " << qualified_name << " get_xdr(" << clobbered_classname << " self)";
+
+ // os << nl << "cdef bool equals(" << clobbered_classname << " self, " << clobbered_classname << " other)";
 
   gen_general_from_ptr_pxd(os, classname, qualified_name);
 }
@@ -779,7 +798,7 @@ void gen_extern_cdef(std::ostream& os, const std::string& file_prefix) {
   if (namespaces.size()) {
     os << " namespace \"" << cur_ns() << "\"";
   }
-  os <<":";
+  os << ":";
 }
 
 void gen_helper_assignment(std::ostream& os, const std::string& name) {
@@ -791,11 +810,12 @@ void gen_helper_assignment(std::ostream& os, const std::string& name) {
     << nl << "\"\"\"";
 }
 
-void gen_ctors_pxd_(std::ostream& os, const std::string& name) {
+void gen_ctors_pxdi(std::ostream& os, const std::string& name) {
 
   os << nl << name << "() except +" 
      << nl << name << "(const " << name << "&) except +"
      << nl << "void operator=(const " << name << "&)";
+   //  << nl << "bool operator==(const " << name << "&)";  // operator== doesn't exist in xdr files.
 }
 
 void gen_array_pxdi(std::ostream& os, const rpc_decl& d, const std::string& file_prefix) {
@@ -810,7 +830,7 @@ void gen_array_pxdi(std::ostream& os, const rpc_decl& d, const std::string& file
 
   os << nl << "cdef cppclass " <<c_typename_prefix << py_name << " \"" << xdr_name << "\":";
   ++nl;
-  gen_ctors_pxd_(os, c_typename_prefix + py_name);
+  gen_ctors_pxdi(os, c_typename_prefix + py_name);
   os << nl << contained_name << "& operator[](int)"
     << nl << "@staticmethod"
     << nl << "uint32_t size()" << endl;
@@ -832,7 +852,7 @@ void gen_vector_pxdi(std::ostream& os, const rpc_decl& d, const std::string& fil
 
     os << nl << "cdef cppclass " << c_typename_prefix << py_name << " \"" << xdr_name << "\":";
     ++nl;
-      gen_ctors_pxd_(os, c_typename_prefix + py_name);
+      gen_ctors_pxdi(os, c_typename_prefix + py_name);
       os << nl << contained_name << "& operator[](int)"
          << nl << "void push_back(" << contained_name << ") except +"
          << nl << "void check_size(size_t n) except +"
@@ -1382,7 +1402,7 @@ void gen_struct_pxdi(std::ostream& os, const rpc_struct& s, const std::string& f
     os << nl << "cppclass " << c_typename_prefix << s.id << " \"" << s.id << "\":";
     ++nl;
   }
-  gen_ctors_pxd_(os, c_typename_prefix + s.id);
+  gen_ctors_pxdi(os, c_typename_prefix + s.id);
 
 
   nested_decl_names.push_back(s.id);
@@ -1485,6 +1505,17 @@ void gen_struct_pyx(std::ostream& os, const rpc_struct& s, const std::string& fi
   add_to_module_export(mainclass_name);
 
 }
+/*
+void gen_equals_struct_pyx(std::ostream& os, const rpc_struct& s, const std::string& classname, const std::string& xdr_typename = "") {
+  
+  auto clobber_prefix = py_nested_decl_name();
+
+  auto qualified_name = xdr_typename;
+  if (qualified_name == "") {
+      qualified_name = c_typename_prefix + clobber_prefix + classname;
+  }
+
+  auto clobbered_classname = clobber_prefix + classname;*/
 
 void gen_union_pxd(std::ostream& os, const rpc_union& u, const std::string& file_prefix, bool subclass) {
 
@@ -1623,6 +1654,9 @@ void gen_union_pyx(std::ostream& os, const rpc_union& u, const std::string& file
   */
 
   end_gen_pointer_class(os);
+
+  add_to_module_export(mainclass_name);
+
 }
 
 
@@ -1650,7 +1684,7 @@ void gen_union_pxdi(std::ostream& os, const rpc_union& u, const std::string& fil
   }
 
 
-  gen_ctors_pxd_(os, c_typename_prefix + u.id);
+  gen_ctors_pxdi(os, c_typename_prefix + u.id);
 
 
   nested_decl_names.push_back(u.id);
@@ -1887,7 +1921,7 @@ void gen_pxdi_util_methods(std::ostream& os) {
   os << nl << "cdef extern from \"<xdrpp/marshal.cc>\":"
      << nl << "  pass";
 
-  os << nl << "cdef extern from \"utils.h\" namespace \"edce\":";
+  os << nl << "cdef extern from \"utils.h\" namespace \"::edce\":";
   ++nl;
     for (auto& s : util_method_classnames) {
       os << nl << "cdef int load_xdr_from_file(" << s << "& output, const char* filename)";
@@ -1913,6 +1947,9 @@ void gen_pxdi(std::ostream& os, const std::string& file_prefix_in)
         break;
       case rpc_sym::STRUCT:
         gen_struct_pxdi(os, *s.sstruct, file_prefix);
+        break;
+      case rpc_sym::UNION:
+        gen_union_pxdi(os, *s.sunion, file_prefix);
         break;
       case rpc_sym::NAMESPACE:
         namespaces.push_back(*s.sliteral);
@@ -1953,6 +1990,9 @@ void gen_pxd(std::ostream& os)
       case rpc_sym::STRUCT:
         gen_struct_pxd(os, *s.sstruct, file_prefix);
         break;
+      case rpc_sym::UNION:
+        gen_union_pxd(os, *s.sunion, file_prefix);
+        break;
       case rpc_sym::NAMESPACE:
         namespaces.push_back(*s.sliteral);
         break;
@@ -1987,6 +2027,9 @@ void gen_pyx(std::ostream& os, const std::string& file_prefix) {
         break;
       case rpc_sym::STRUCT:
         gen_struct_pyx(os, *s.sstruct, file_prefix);
+        break;
+      case rpc_sym::UNION:
+        gen_union_pyx(os, *s.sunion, file_prefix);
         break;
       case rpc_sym::CONST:
         gen_constant_pyx(os, *s.sconst, file_prefix);
