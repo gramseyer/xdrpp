@@ -96,8 +96,17 @@ string py_nested_decl_name()
 //  return xdr_float_types.find(s) != xdr_float_types.end();
 //}
 
+
+
 bool is_native_type(const string& raw_typename) {
   return xdr_native_types.find(raw_typename) != xdr_native_types.end();//is_int_type(raw_typename) || is_float_type(raw_typename);
+}
+
+bool is_native_type(const rpc_decl& decl) {
+  if (decl.qual != rpc_decl::SCALAR) {
+    return false;
+  }
+  return is_native_type(decl.type);
 }
 
 string xdr_native_typename(const string& classname, const string& filename) {
@@ -560,13 +569,27 @@ void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const
     ++nl;
     os << nl << "return load_xdr_from_file(deref(self.ptr), filename.c_str())";
     --nl;
+  os << nl;
 
   os << nl << "def load_from_file(self, filename):";
   ++nl;
     os << nl << "self.null_check()";
     os << nl << "self._load_from_file(filename)";
   --nl;
+  os << nl;
 
+  os << nl << "cdef int _save_to_file(" << clobbered_classname << " self, string filename) except -1:";
+    ++nl;
+    os << nl << "return save_xdr_to_file(deref(self.ptr), filename.c_str())";
+    --nl;
+  os << nl;
+
+  os << nl << "def save_to_file(self, filename):";
+  ++nl;
+    os << nl << "self.null_check()";
+    os << nl << "self._save_to_file(filename)";
+  --nl;
+  os << nl;
 
   os << nl << "@staticmethod"
      << nl << "def reference(other):";
@@ -651,6 +674,8 @@ void gen_pointer_class_pxd(std::ostream& os, const string& classname, const stri
 
   os << nl << "cdef int _load_from_file(" << clobbered_classname << " self, string filename) except -1";
 
+  os << nl << "cdef int _save_to_file(" << clobbered_classname << " self, string filename) except -1";
+
   //os << nl << "cdef void null_check(" << clobbered_classname << " self) except -1";
 
   os << nl << "cdef " << qualified_name << " get_xdr(" << clobbered_classname << " self)";
@@ -673,6 +698,7 @@ void add_to_module_export(const std::string& name) {
 
 void end_gen_pointer_class(std::ostream& os) {
   --nl;
+  os << endl;
   os << endl;
 }
 
@@ -1060,7 +1086,7 @@ void gen_var_access_methods_pyx(std::ostream& os, const std::string& mainclass, 
 
   auto obj_type = py_type(d, file_prefix);
 
-  if (is_native_type(d.type)) {
+  if (is_native_type(d)) { //TODO was d.type
     obj_type = py_typename_native(d.type) + "_" + strip_directory(file_prefix);
   }
 
@@ -1102,7 +1128,7 @@ void gen_var_access_methods_pxd(std::ostream& os, const std::string& mainclass, 
 
   auto obj_type = py_type(d, file_prefix);
 
-  if (is_native_type(d.type)) {
+  if (is_native_type(d)) { //TODO was d.type
     obj_type = py_typename_native(d.type) + "_" + strip_directory(file_prefix);
   }
 
@@ -1114,7 +1140,7 @@ void gen_var_access_methods_pxd(std::ostream& os, const std::string& mainclass, 
 void gen_union_access_methods_pyx(std::ostream& os, const std::string& mainclass, const rpc_decl& d, const std::string& clobber_prefix, const std::string& file_prefix) {
   auto obj_type = py_type(d, file_prefix);
 
-  if (is_native_type(d.type)) {
+  if (is_native_type(d)) { //TODO was d.type
     obj_type = py_typename_native(d.type);
   }
 
@@ -1151,7 +1177,7 @@ void gen_union_access_methods_pxd(std::ostream& os, const std::string& mainclass
 
   auto obj_type = py_type(d, file_prefix);
 
-  if (is_native_type(d.type)) {
+  if (is_native_type(d)) { //TODO was d.type
     obj_type = py_typename_native(d.type);
   }
 
@@ -1209,7 +1235,7 @@ void gen_flattened_decls_pxd(std::ostream& os, const rpc_struct& s, const std::s
     if (needs_flattened_declaration(decl)) {
       gen_flattened_decl_pxd(os, decl, file_prefix);
     }
-    if (is_native_type(decl.type)) {
+    if (is_native_type(decl)) {//TODO was d.type
       gen_native_type_wrapper_pxd(os, decl.type, file_prefix);
     }
     gen_flattened_decls_pxd(os, decl, file_prefix);
@@ -1221,7 +1247,7 @@ void gen_flattened_decls_pxd(std::ostream& os, const rpc_union& u, const std::st
     if (needs_flattened_declaration(ufield.decl)) {
       gen_flattened_decl_pxd(os, ufield.decl, file_prefix);
     }
-    if (is_native_type(ufield.decl.type)) {
+    if (is_native_type(ufield.decl)) { //TODO was d.type
       gen_native_type_wrapper_pxd(os, ufield.decl.type, file_prefix);
     }
     gen_flattened_decls_pxd(os, ufield.decl, file_prefix);
@@ -1232,7 +1258,7 @@ void gen_flattened_decls_pxd(std::ostream& os, const rpc_decl& decl, const std::
   if (needs_flattened_declaration(decl)) {
     gen_flattened_decl_pxd(os, decl, file_prefix);
   }
-  if (is_native_type(decl.type)) {
+  if (is_native_type(decl)) { //TODO was d.type
     gen_native_type_wrapper_pxd(os, decl.type, file_prefix);
   }
 
@@ -1292,7 +1318,7 @@ void gen_flattened_decls_pyx(std::ostream& os, const rpc_struct& s, const std::s
     if (needs_flattened_declaration(decl)) {
       gen_flattened_decl_pyx(os, decl, file_prefix);
     }
-    if (is_native_type(decl.type)) {
+    if (is_native_type(decl)) { //TODO was d.type
       gen_native_type_wrapper_pyx(os, decl.type, file_prefix);
     }
     gen_flattened_decls_pyx(os, decl, file_prefix);
@@ -1304,7 +1330,7 @@ void gen_flattened_decls_pyx(std::ostream& os, const rpc_union& u, const std::st
     if (needs_flattened_declaration(ufield.decl)) {
       gen_flattened_decl_pxd(os, ufield.decl, file_prefix);
     }
-    if (is_native_type(ufield.decl.type)) {
+    if (is_native_type(ufield.decl)) { //TODO was d.type
       gen_native_type_wrapper_pyx(os, ufield.decl.type, file_prefix);
     }
     gen_flattened_decls_pyx(os, ufield.decl, file_prefix);
@@ -1319,7 +1345,7 @@ void gen_flattened_decls_pyx(std::ostream& os, const rpc_decl& decl, const std::
     gen_flattened_decl_pyx(os, decl, file_prefix);
   }
 
-  if (is_native_type(decl.type)) {
+  if (is_native_type(decl)) { //TODO was d.type
     gen_native_type_wrapper_pyx(os, decl.type, file_prefix);
   }
 
@@ -1410,7 +1436,7 @@ void gen_struct_pxdi(std::ostream& os, const rpc_struct& s, const std::string& f
   for (const auto& decl : s.decls) {
     gen_subtype_pxdi(os, decl, file_prefix);
     auto prefix_use = c_typename_prefix;
-    if (is_native_type(decl.type)) {
+    if (is_native_type(decl)) { //TODO was d.type
       prefix_use = "";
     }
     os << nl << prefix_use << py_type(decl, file_prefix)<< " " << decl.id;
@@ -1723,7 +1749,7 @@ void gen_typedef_pxdi(std::ostream& os, const rpc_decl& d, const std::string& fi
   auto xdr_name = xdr_type(d);
 
   auto underlying_t_prefix = c_typename_prefix;
-  if (is_native_type(d.type)) {
+  if (is_native_type(d.type)) { 
     underlying_t_prefix = "";
   }
   
@@ -1925,8 +1951,9 @@ void gen_pxdi_util_methods(std::ostream& os) {
   ++nl;
     for (auto& s : util_method_classnames) {
       os << nl << "cdef int load_xdr_from_file(" << s << "& output, const char* filename)";
+      os << nl << "cdef int save_xdr_to_file(" << s << "& output, const char* filename)";
     }
-    --nl;
+  --nl;
 }
 
 void gen_pxdi(std::ostream& os, const std::string& file_prefix_in)
