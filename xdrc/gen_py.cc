@@ -742,6 +742,17 @@ void gen_vector_methods_pyx(std::ostream& os, const std::string& classname, cons
     --nl;
     os << nl << "return " << contained_type << ".from_ptr(addr(deref(self.ptr)[key]), ownership = False)" <<endl;
   --nl;
+
+  os << nl << "cdef _push_back(self, " << contained_type << " element):" ;
+  ++ nl;
+    os << nl << "deref(self.ptr).push_back(element.get_xdr())";
+  --nl;
+
+  os << nl << "def push_back(self, elt):";
+  ++nl;
+    os << nl << "self._push_back(elt)";
+  --nl;
+
 }
 
 void gen_vector_methods_pxd(std::ostream& os, const std::string& classname, const std::string& contained_type, const std::string& file_prefix) {
@@ -754,6 +765,8 @@ void gen_vector_methods_pxd(std::ostream& os, const std::string& classname, cons
   }
 
   os << nl << "cdef set(self, uint32_t key, " << contained_guarded_typename << " value)";
+  os << nl << "cdef _push_back(self, " << contained_guarded_typename << " element)" ;
+
 
 }
 
