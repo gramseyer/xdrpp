@@ -750,7 +750,7 @@ void gen_vector_methods_pyx(std::ostream& os, const std::string& classname, cons
 
   os << nl << "def push_back(self, elt):";
   ++nl;
-    os << nl << "self._push_back(elt)";
+    os << nl << "self._push_back(" << contained_type<< "(elt))";
   --nl;
 
 }
