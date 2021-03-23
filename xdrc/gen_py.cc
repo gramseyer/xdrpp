@@ -1909,7 +1909,7 @@ void gen_srpc_client_method_pxdi(std::ostream& os, const rpc_proc& proc) {
 }
 
 void gen_srpc_client_method_pxd(std::ostream& os, const rpc_proc& proc) {
-   os << nl << "cdef " << proc.id << "(self";
+   os << nl << "cdef _" << proc.id << "(self";
 
   for (size_t i = 0; i < proc.arg.size(); i++) {
     os << ", "  << proc.arg[i] << " arg" << i;
@@ -1919,7 +1919,7 @@ void gen_srpc_client_method_pxd(std::ostream& os, const rpc_proc& proc) {
 
 void gen_srpc_client_method_pyx(std::ostream& os, const rpc_proc& proc) {
 
-  os << nl << "cdef " << proc.id << "(self";
+  os << nl << "cdef _" << proc.id << "(self";
 
   for (size_t i = 0; i < proc.arg.size(); i++) {
     os << ", "  << proc.arg[i] << " arg" << i;
@@ -1937,6 +1937,22 @@ void gen_srpc_client_method_pyx(std::ostream& os, const rpc_proc& proc) {
     os << ")";
   --nl;
 
+  os << nl << "def " << proc.id << "(self";
+  for (size_t i = 0; i < proc.arg.size(); i++) {
+    os << ", arg" << i;
+  }
+  os << "):";
+  ++nl;
+    os << nl << "self._" << proc.id << "(";
+    for (size_t i = 0; i < proc.arg.size(); i++) {
+      if (i > 0) {
+        os << ", ";
+      }
+      os << "arg" << i;
+    }
+    os << ")";
+  --nl;
+
 }
 
 void gen_srpc_client_pyx(std::ostream& os, const rpc_vers& version) {
@@ -1948,6 +1964,8 @@ void gen_srpc_client_pyx(std::ostream& os, const rpc_vers& version) {
     gen_srpc_client_method_pyx(os, proc);
   }
   end_gen_pointer_class(os);
+
+  add_to_module_export(version.id);
 }
 
 
