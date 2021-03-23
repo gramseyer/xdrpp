@@ -31,7 +31,9 @@ std::unordered_map<string, string> xdr_type_map = {
   {"hyper", "int64_t"},
   {"opaque", "uint8_t"},
   {"float", "float"},
-  {"uint8_t", "uint8_t"}
+  {"uint8_t", "uint8_t"},
+  {"char", "char"}
+
 };
 
 std::set<string> stdint_types = {
@@ -49,6 +51,7 @@ std::unordered_map<string, string> xdr_native_types = {
   {"hyper", "int64_t_wrapper"},
   {"float", "float_wrapper"},
   {"uint8_t", "uint8_t_wrapper"},
+  {"char", "char_wrapper"}
 };
 
 std::unordered_map<string, string> py_base_types = {
@@ -58,6 +61,7 @@ std::unordered_map<string, string> py_base_types = {
   {"hyper", "int"},
   {"float", "float"},
   {"uint8_t", "int"},
+  {"char", "int"},
 };
 
 //std::unordered_map<string, string> xdr_float_types = {
@@ -152,10 +156,17 @@ void gen_base_native_from_ptr_method_pyx(std::ostream& os, const string& classna
     os << nl << "pass";
   --nl;
 
-  os << nl << "cdef " <<  xdr_type_map.at(classname) << " get_xdr(" << xdr_native_typename(classname, filename) << " self):";
-  ++nl;
-    os << nl << "return self";
-  --nl;
+  if (classname == "char") {
+    os << nl << "cdef char get_xdr(" << xdr_native_typename(classname, filename) << " self):";
+    ++nl;
+      os << nl << "return <char> (self)";
+    --nl;
+  } else {
+    os << nl << "cdef " <<  xdr_type_map.at(classname) << " get_xdr(" << xdr_native_typename(classname, filename) << " self):";
+    ++nl;
+      os << nl << "return self";
+    --nl;
+  }
 }
 
 void gen_base_native_from_ptr_method_pxd(std::ostream& os, const string& classname, const string &filename) {
@@ -252,7 +263,7 @@ xdr_type(const rpc_decl &d)
     }
   }
 
-  if (type == "string")
+  if (d.type == "string")
     return string("xdr::xstring<") + bound_name + ">";
   if (d.type == "opaque")
     switch (d.qual) {
@@ -364,7 +375,7 @@ string py_type(const rpc_decl &d, const string& file_prefix)
 
   auto filename = strip_directory(file_prefix);
 
-  if (type == "string")
+  if (d.type == "string")
     return string("xdr_xstring_") + d.bound + "_"+ filename;
   if (d.type == "opaque")
     switch (d.qual) {
@@ -401,6 +412,10 @@ string contained_type(const rpc_decl &d)
       default:
         assert(!"bad opaque qualiifier");
     }
+  }
+  if (d.type == "string") {
+    return "char";
+//    throw std::runtime_error("shouldn't be getting string from here!");
   }
   switch(d.qual) {
     case rpc_decl::PTR:
@@ -479,7 +494,14 @@ string py_nested_decl_name_for_subtype_import() {
   return out;
 }
 
-void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const std::string& xdr_typename = "") {
+void 
+gen_pointer_class_pyx(
+  std::ostream& os, 
+  const std::string& classname, 
+  const std::string& xdr_typename = "", 
+  bool load_methods = true,
+  const std::string& new_ctor_args = "", 
+  const std::string& new_ctor_invokes = "") {
   
   auto clobber_prefix = py_nested_decl_name();
 
@@ -495,18 +517,21 @@ void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const
   os << nl << "def __init__(self, x):";
   ++nl;
     os << nl << "self.set_self_as_ref(x)";
-    --nl;
-  os << nl << "cdef set_self_as_copy(" << clobbered_classname << " self, " << clobbered_classname << " other):";
-  ++nl;
-    gen_null_check_pyx(os, "other");
-    os << nl << "self.ptr = new " << qualified_name << "()"
-      << nl << "if self.ptr is NULL:";
-      ++nl;
-        os << nl << "raise MemoryError";
-      --nl;
-      os << nl << "self.ownership = True"
-         << nl << "self.ptr[0] = (other.get_xdr())";
   --nl;
+
+  if (load_methods) {
+    os << nl << "cdef set_self_as_copy(" << clobbered_classname << " self, " << clobbered_classname << " other):";
+    ++nl;
+      gen_null_check_pyx(os, "other");
+      os << nl << "self.ptr = new " << qualified_name << "()"
+        << nl << "if self.ptr is NULL:";
+        ++nl;
+          os << nl << "raise MemoryError";
+        --nl;
+        os << nl << "self.ownership = True"
+           << nl << "self.ptr[0] = (other.get_xdr())";
+    --nl;
+  }
 
    os << nl << "cdef set_self_as_ref(" << clobbered_classname << " self, " << clobbered_classname << " other):";
   ++nl;
@@ -538,9 +563,9 @@ void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const
   --nl;
 
   os << nl << "@staticmethod"
-     << nl << "cdef " << clobbered_classname << " new_ctor():";
+     << nl << "cdef " << clobbered_classname << " new_ctor(" << new_ctor_args << "):";
   ++nl;
-  os << nl << "cdef " << qualified_name << "* ptr = new " << qualified_name << "()"
+  os << nl << "cdef " << qualified_name << "* ptr = new " << qualified_name << "(" << new_ctor_invokes << ")"
      << nl << "if ptr is NULL:";
   ++nl;
   os << nl << "raise MemoryError";
@@ -548,48 +573,54 @@ void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const
   os << nl << "return " << clobbered_classname << ".from_ptr(ptr, ownership = True)" <<endl;
   --nl;
 
-  os << nl << "@staticmethod"
-     << nl << "cdef " << clobbered_classname << " copy_ctor(" << clobbered_classname << " other):";
-  ++nl;
-  os << nl << "cdef " << qualified_name << "* ptr = new " << qualified_name << "(deref(other.ptr))"
-     << nl << "if ptr is NULL:";
-  ++nl;
-  os << nl << "raise MemoryError";
-  --nl;
-  os << nl << "return " << clobbered_classname << ".from_ptr(ptr, ownership = True)" <<endl;
-  --nl;
+  if (load_methods) {
+    os << nl << "@staticmethod"
+       << nl << "cdef " << clobbered_classname << " copy_ctor(" << clobbered_classname << " other):";
+    ++nl;
+    os << nl << "cdef " << qualified_name << "* ptr = new " << qualified_name << "(deref(other.ptr))"
+       << nl << "if ptr is NULL:";
+    ++nl;
+    os << nl << "raise MemoryError";
+    --nl;
+    os << nl << "return " << clobbered_classname << ".from_ptr(ptr, ownership = True)" <<endl;
+    --nl;
+  }
 
   os << nl << "@staticmethod"
      << nl << "cdef " << clobbered_classname << " make_ref(" << clobbered_classname << " other):";
      ++nl;
      os << nl << "return " << clobbered_classname << ".from_ptr(other.ptr, ownership = False)" <<endl;
      --nl;
+  
 
-  os << nl << "cdef int _load_from_file(" << clobbered_classname << " self, string filename) except -1:";
+  if (load_methods) {
+
+    os << nl << "cdef int _load_from_file(" << clobbered_classname << " self, string filename) except -1:";
+      ++nl;
+      os << nl << "return load_xdr_from_file(deref(self.ptr), filename.c_str())";
+      --nl;
+    os << nl;
+
+    os << nl << "def load_from_file(self, filename):";
     ++nl;
-    os << nl << "return load_xdr_from_file(deref(self.ptr), filename.c_str())";
+      os << nl << "self.null_check()";
+      os << nl << "self._load_from_file(filename)";
     --nl;
-  os << nl;
+    os << nl;
 
-  os << nl << "def load_from_file(self, filename):";
-  ++nl;
-    os << nl << "self.null_check()";
-    os << nl << "self._load_from_file(filename)";
-  --nl;
-  os << nl;
+    os << nl << "cdef int _save_to_file(" << clobbered_classname << " self, string filename) except -1:";
+      ++nl;
+      os << nl << "return save_xdr_to_file(deref(self.ptr), filename.c_str())";
+      --nl;
+    os << nl;
 
-  os << nl << "cdef int _save_to_file(" << clobbered_classname << " self, string filename) except -1:";
+    os << nl << "def save_to_file(self, filename):";
     ++nl;
-    os << nl << "return save_xdr_to_file(deref(self.ptr), filename.c_str())";
+      os << nl << "self.null_check()";
+      os << nl << "self._save_to_file(filename)";
     --nl;
-  os << nl;
-
-  os << nl << "def save_to_file(self, filename):";
-  ++nl;
-    os << nl << "self.null_check()";
-    os << nl << "self._save_to_file(filename)";
-  --nl;
-  os << nl;
+    os << nl;
+  }
 
   os << nl << "@staticmethod"
      << nl << "def reference(other):";
@@ -597,16 +628,18 @@ void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const
   os << nl << "return " << clobbered_classname << ".make_ref(other)" <<endl;
   --nl;
 
-  os << nl << "@staticmethod"
-     << nl << "def copy(other):";
-  ++nl;
-  os << nl << "return " << clobbered_classname << ".copy_ctor(other)" <<endl;
-  --nl;
+  if (load_methods) {
+    os << nl << "@staticmethod"
+       << nl << "def copy(other):";
+    ++nl;
+    os << nl << "return " << clobbered_classname << ".copy_ctor(other)" <<endl;
+    --nl;
+  }
 
   os << nl << "@staticmethod"
-     << nl << "def new():";
+     << nl << "def new(" << new_ctor_invokes << "):";
   ++nl;
-  os << nl << "return " << clobbered_classname << ".new_ctor()" <<endl;
+  os << nl << "return " << clobbered_classname << ".new_ctor(" << new_ctor_invokes << ")" <<endl;
   --nl;
 
   os << nl << "def null_check(self):";
@@ -617,10 +650,12 @@ void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const
     --nl;
   --nl;
 
-  os << nl << "cdef " << qualified_name << " get_xdr(" << clobbered_classname << " self):";
-  ++nl;
-    os << nl << "return deref(self.ptr)";
-  --nl;
+  if (load_methods) {
+    os << nl << "cdef " << qualified_name << " get_xdr(" << clobbered_classname << " self):";
+    ++nl;
+      os << nl << "return deref(self.ptr)";
+    --nl;
+  }
 
  // os << nl << "cdef bool equals(" << clobbered_classname << " self, " << clobbered_classname << " other):";
  // ++nl;
@@ -642,7 +677,7 @@ void gen_pointer_class_pyx(std::ostream& os, const std::string& classname, const
   gen_general_from_ptr_pyx(os, classname, qualified_name);
 }
 
-void gen_pointer_class_pxd(std::ostream& os, const string& classname, const string& xdr_typename = "") {
+void gen_pointer_class_pxd(std::ostream& os, const string& classname, const string& xdr_typename = "", bool load_methods = true, const string& new_ctor_args = "") {
   auto clobber_prefix = py_nested_decl_name();
 
   auto qualified_name = xdr_typename;
@@ -659,26 +694,29 @@ void gen_pointer_class_pxd(std::ostream& os, const string& classname, const stri
   os << nl << "cdef " << qualified_name << "* ptr"
      << nl << "cdef bool ownership" << endl;
   
-  os << nl << "cdef set_self_as_copy(" << clobbered_classname << " self, " << clobbered_classname << " other)";
+  if (load_methods)
+    os << nl << "cdef set_self_as_copy(" << clobbered_classname << " self, " << clobbered_classname << " other)";
   os << nl << "cdef set_self_as_ref(" << clobbered_classname << " self, " << clobbered_classname << " other)";
 
   os << nl << "@staticmethod"
-     << nl << "cdef " << clobbered_classname << " new_ctor()";
+     << nl << "cdef " << clobbered_classname << " new_ctor(" << new_ctor_args << ")";
 
 
-  os << nl << "@staticmethod"
-     << nl << "cdef " << clobbered_classname << " copy_ctor(" << clobbered_classname << " other)";
-
+  if (load_methods) {
+    os << nl << "@staticmethod"
+       << nl << "cdef " << clobbered_classname << " copy_ctor(" << clobbered_classname << " other)";
+  }
   os << nl << "@staticmethod"
      << nl << "cdef " << clobbered_classname << " make_ref(" << clobbered_classname << " other)";
+  
+  if (load_methods) {
+    os << nl << "cdef int _load_from_file(" << clobbered_classname << " self, string filename) except -1";
 
-  os << nl << "cdef int _load_from_file(" << clobbered_classname << " self, string filename) except -1";
-
-  os << nl << "cdef int _save_to_file(" << clobbered_classname << " self, string filename) except -1";
-
+    os << nl << "cdef int _save_to_file(" << clobbered_classname << " self, string filename) except -1";
+  }
   //os << nl << "cdef void null_check(" << clobbered_classname << " self) except -1";
-
-  os << nl << "cdef " << qualified_name << " get_xdr(" << clobbered_classname << " self)";
+  if (load_methods)
+    os << nl << "cdef " << qualified_name << " get_xdr(" << clobbered_classname << " self)";
 
  // os << nl << "cdef bool equals(" << clobbered_classname << " self, " << clobbered_classname << " other)";
 
@@ -903,6 +941,30 @@ void gen_vector_pxdi(std::ostream& os, const rpc_decl& d, const std::string& fil
   util_method_classnames.push_back(c_typename_prefix + py_name);
 }
 
+/*
+void gen_string_pxdi(std::ostream& os, const rpc_decl& d) {
+  gen_extern_cdef(os, file_prefix);
+
+  ++nl;
+    auto py_name = py_type(d, file_prefix);
+    auto xdr_name = xdr_type(d);
+    auto contained_name = "char";
+
+    gen_helper_assignment(os, c_typename_prefix + py_name);
+
+    os << nl << "cdef cppclass " << c_typename_prefix << py_name << " \"" << xdr_name << "\":";
+    ++nl;
+      gen_ctors_pxdi(os, c_typename_prefix + py_name);
+      os << nl << contained_name << "& operator[](int)"
+         << nl << "void push_back(" << contained_name << ") except +"
+         << nl << "void check_size(size_t n) except +"
+         << nl << "size_t size()"
+         << nl << "erase(int)" << endl;
+    --nl;
+  --nl;
+}
+*/
+
 void gen_vector_pyx(std::ostream& os, const rpc_decl&d, const std::string& file_prefix) {
   gen_pointer_class_pyx(os, py_type(d, file_prefix));
 
@@ -988,7 +1050,13 @@ void gen_flattened_decl_pxdi(std::ostream& os, const rpc_decl& decl, const std::
         gen_array_pxdi(os, decl, file_prefix);
         break;
       case rpc_decl::VEC:
-        gen_vector_pxdi(os, decl, file_prefix);
+
+        //if (decl.type == "string") {
+        //  gen_string_pxdi(os, decl);
+        //}
+        //else {
+          gen_vector_pxdi(os, decl, file_prefix);
+        //}
         break;
     }
   }
@@ -1715,7 +1783,7 @@ void gen_union_pxdi(std::ostream& os, const rpc_union& u, const std::string& fil
   if (!subclass) {
     gen_extern_cdef(os, file_prefix);
     ++nl;
-    os << nl << "cdef cppclass " <<c_typename_prefix <<  u.id << " \"" << cppclass_type_string(u.id) << "\":";
+    os << nl << "cdef cppclass " << c_typename_prefix << u.id << " \"" << cppclass_type_string(u.id) << "\":";
     ++nl;
   } else {
     os << nl << "cppclass " << c_typename_prefix << u.id << " \"" << u.id << "\":";
@@ -1808,11 +1876,142 @@ void gen_typedef_pyx(std::ostream& os, const rpc_decl& d, const std::string& fil
   os << endl;
 
   add_to_module_export(d.id);
+}
 
+std::string get_srpc_client_type_string(const rpc_vers& version) {
+  return std::string("::xdr::srpc_client<") + cppclass_type_string(version.id) + ">";
+}
+
+std::string get_srpc_client_flattened_pyname(const rpc_vers& version) {
+  return std::string("xdr_srpc_client_") + flatten_namespaces(cppclass_type_string(version.id));
+}
+
+std::string get_srpc_obj_type_string(const rpc_vers& version) {
+  return cppclass_type_string(version.id);
+}
+
+std::string get_srpc_obj_flattened_pyname(const rpc_vers& version) {
+  return flatten_namespaces(cppclass_type_string(version.id));
+}
+
+void gen_srpc_client_method_pxdi(std::ostream& os, const rpc_proc& proc) {
+  os << nl << proc.res << " " << proc.id << "(";
+
+  bool first = true;
+  for (auto& arg : proc.arg) {
+    if (!first) {
+      os << ", ";
+    }
+    first = false;
+    os << c_typename_prefix << arg;
+  }
+  os << ")";
+}
+
+void gen_srpc_client_method_pxd(std::ostream& os, const rpc_proc& proc) {
+   os << nl << "cdef " << proc.id << "(self";
+
+  for (size_t i = 0; i < proc.arg.size(); i++) {
+    os << ", "  << proc.arg[i] << " arg" << i;
+  }
+  os << ")";
+}
+
+void gen_srpc_client_method_pyx(std::ostream& os, const rpc_proc& proc) {
+
+  os << nl << "cdef " << proc.id << "(self";
+
+  for (size_t i = 0; i < proc.arg.size(); i++) {
+    os << ", "  << proc.arg[i] << " arg" << i;
+  }
+  os << "):";
+  ++nl;
+    gen_null_check_pyx(os);
+    os << nl << "deref(self.ptr)." << proc.id << "(";
+    for (size_t i = 0; i < proc.arg.size(); i++) {
+      if (i > 0) {
+        os << ", ";
+      }
+      os << "arg" << i << ".get_xdr()";
+    }
+    os << ")";
+  --nl;
 
 }
 
+void gen_srpc_client_pyx(std::ostream& os, const rpc_vers& version) {
+  auto xdr_typename = c_typename_prefix + get_srpc_client_flattened_pyname(version);
+
+  gen_pointer_class_pyx(os, version.id, xdr_typename, false, "int socketfd", "socketfd");
+
+  for (auto& proc : version.procs) {
+    gen_srpc_client_method_pyx(os, proc);
+  }
+  end_gen_pointer_class(os);
 }
+
+
+void gen_srpc_client_pxd(std::ostream& os, const rpc_vers& version) {
+  auto xdr_typename = c_typename_prefix + get_srpc_client_flattened_pyname(version);
+
+  gen_pointer_class_pxd(os, version.id, xdr_typename, false, "int");
+
+  for (auto& proc : version.procs) {
+    gen_srpc_client_method_pxd(os, proc);
+  }
+  end_gen_pointer_class(os);
+}
+
+void gen_srpc_client_pxdi(std::ostream& os, const rpc_vers& version) {
+  auto xdr_name = get_srpc_client_type_string(version);
+  auto py_name = get_srpc_client_flattened_pyname(version);
+
+  gen_extern_cdef(os, file_prefix);
+  ++nl;
+    os << nl << "cdef cppclass " << c_typename_prefix << get_srpc_obj_flattened_pyname(version) << " \"" << get_srpc_obj_type_string(version) << "\":";
+    os << nl << "  pass";
+  --nl;
+  os << nl << "cdef extern from \"<xdrpp/srpc.cc>\":";
+  os << nl << "  pass";
+  os << nl << "cdef extern from \"<xdrpp/srpc.h>\" namespace \"::xdr\":";
+
+  ++nl;
+    os << nl << "cdef cppclass " << c_typename_prefix << py_name << " \"" << xdr_name << "\":";
+
+    ++nl;
+      os << nl << c_typename_prefix << py_name << "(int) except +";
+      os << nl << c_typename_prefix << py_name << "() except +";
+      os << nl << c_typename_prefix << py_name << "(const " << c_typename_prefix << py_name << "&) except +";
+
+      for (auto& proc : version.procs) {
+        gen_srpc_client_method_pxdi(os, proc);
+      }
+    --nl;
+  --nl;
+}
+
+void gen_srpc_client_pyx(std::ostream& os, const rpc_program& program) {
+  for (auto& vers : program.vers) {
+    gen_srpc_client_pyx(os, vers);
+  }
+}
+
+void gen_srpc_client_pxd(std::ostream& os, const rpc_program& program) {
+  for (auto& vers : program.vers) {
+    gen_srpc_client_pxd(os, vers);
+  }
+}
+
+void gen_srpc_client_pxdi(std::ostream& os, const rpc_program& program) {
+  for (auto& vers : program.vers) {
+    gen_srpc_client_pxdi(os, vers);
+  }
+}
+
+
+
+
+} /* namespace <noname> */
 
 void gen_header_common(std::ostream& os) {
     os << "# distutils: language = c++" <<endl
@@ -1967,6 +2166,14 @@ void gen_pxdi_util_methods(std::ostream& os) {
       os << nl << "cdef int save_xdr_to_file(" << s << "& output, const char* filename)";
     }
   --nl;
+
+  /*os << nl << "cdef extern from \"<xdrpp/srpc.cc\":"
+     << nl << "  pass";
+  os << nl << "cdef extern from \"<xdrpp/srpc.h\":";
+  ++nl;
+    for (auto &s : srpc_client_classes) {
+      os << nl << "cdef cppclass "
+    }*/
 }
 
 void gen_pxdi(std::ostream& os, const std::string& file_prefix_in)
@@ -1991,6 +2198,9 @@ void gen_pxdi(std::ostream& os, const std::string& file_prefix_in)
       case rpc_sym::UNION:
         gen_union_pxdi(os, *s.sunion, file_prefix);
         break;
+      case rpc_sym::PROGRAM:
+        gen_srpc_client_pxdi(os, *s.sprogram);
+        break;
       case rpc_sym::NAMESPACE:
         namespaces.push_back(*s.sliteral);
         break;
@@ -2011,7 +2221,7 @@ void gen_pxd(std::ostream& os)
 	gen_header_pxd(os);
   
   gen_native_type_wrapper_pxd(os, "uint8_t", file_prefix);
-
+  gen_native_type_wrapper_pxd(os, "char", file_prefix);
 
   //os << nl << "from " << file_prefix << "_includes cimport *" << endl;
 
@@ -2033,6 +2243,9 @@ void gen_pxd(std::ostream& os)
       case rpc_sym::UNION:
         gen_union_pxd(os, *s.sunion, file_prefix);
         break;
+      case rpc_sym::PROGRAM:
+        gen_srpc_client_pxd(os, *s.sprogram);
+        break;
       case rpc_sym::NAMESPACE:
         namespaces.push_back(*s.sliteral);
         break;
@@ -2053,6 +2266,7 @@ void gen_pyx(std::ostream& os, const std::string& file_prefix) {
   //os << nl << "cimport " << file_prefix << "_includes as " << file_prefix << endl;
 
   gen_native_type_wrapper_pyx(os, "uint8_t", file_prefix);
+  gen_native_type_wrapper_pyx(os, "char", file_prefix);
 
   gen_total_flattened_decls_pyx(os, file_prefix);
 
@@ -2073,6 +2287,9 @@ void gen_pyx(std::ostream& os, const std::string& file_prefix) {
         break;
       case rpc_sym::CONST:
         gen_constant_pyx(os, *s.sconst, file_prefix);
+        break;
+      case rpc_sym::PROGRAM:
+        gen_srpc_client_pyx(os, *s.sprogram);
         break;
       case rpc_sym::NAMESPACE:
         namespaces.push_back(*s.sliteral);

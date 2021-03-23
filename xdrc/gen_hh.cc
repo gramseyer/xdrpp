@@ -714,7 +714,7 @@ gen_vers(std::ostream &os, const rpc_program &u, const rpc_vers &v)
     os << nl << "using arg_tuple_type = std::tuple<";
     for (size_t i = 0; i < p.arg.size(); ++i) {
       if (i)
-	os << ", ";
+        os << ", ";
       os << p.arg[i];
     }
     os << ">;";
