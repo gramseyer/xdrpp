@@ -1980,6 +1980,11 @@ void gen_srpc_client_pxd(std::ostream& os, const rpc_vers& version) {
   end_gen_pointer_class(os);
 }
 
+void add_extern_empty_cc_import_pxdi(std::ostream& os, const std::string import_filename) {
+  os << nl << "cdef extern from \"" << import_filename << "\":";
+  os << nl << "  pass";
+}
+
 void gen_srpc_client_pxdi(std::ostream& os, const rpc_vers& version) {
   auto xdr_name = get_srpc_client_type_string(version);
   auto py_name = get_srpc_client_flattened_pyname(version);
@@ -1989,8 +1994,17 @@ void gen_srpc_client_pxdi(std::ostream& os, const rpc_vers& version) {
     os << nl << "cdef cppclass " << c_typename_prefix << get_srpc_obj_flattened_pyname(version) << " \"" << get_srpc_obj_type_string(version) << "\":";
     os << nl << "  pass";
   --nl;
-  os << nl << "cdef extern from \"<xdrpp/srpc.cc>\":";
-  os << nl << "  pass";
+  add_extern_empty_cc_import_pxdi(os, "<xdrpp/srpc.cc>");
+  add_extern_empty_cc_import_pxdi(os, "<xdrpp/printer.cc>");
+  add_extern_empty_cc_import_pxdi(os, "<xdrpp/rpc_msg.cc>");
+  add_extern_empty_cc_import_pxdi(os, "<xdrpp/server.cc>");
+  add_extern_empty_cc_import_pxdi(os, "<xdrpp/msgsock.cc>");
+  add_extern_empty_cc_import_pxdi(os, "<xdrpp/socket.cc>");
+  // this won't work right on windows
+  add_extern_empty_cc_import_pxdi(os, "<xdrpp/socket_unix.cc>");
+
+  add_extern_empty_cc_import_pxdi(os, "<xdrpp/pollset.cc>");
+
   os << nl << "cdef extern from \"<xdrpp/srpc.h>\" namespace \"::xdr\":";
 
   ++nl;
