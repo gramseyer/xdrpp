@@ -105,7 +105,7 @@ msg_sock::input()
       }
     }
     else {
-      std::cerr << "msg_sock: rejecting " << len << "-byte message (too long)"
+      std::cerr << "msg_sock: rejecting " << len << "-byte message (too long: max is "<< maxmsglen_ << ")"
 		<< std::endl;
       ps_.fd_cb(s_, pollset::Read);
     }

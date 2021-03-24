@@ -26,7 +26,7 @@ namespace xdr {
 //! speculatively and reduce the number of system calls.
 class msg_sock {
 public:
-  static constexpr std::size_t default_maxmsglen = 0x100000;
+  static constexpr std::size_t default_maxmsglen = 0xa000000;
   using rcb_t = std::function<void(msg_ptr)>;
 
   template<typename T> msg_sock(pollset &ps, sock_t s, T &&rcb,
@@ -109,7 +109,7 @@ public:
 				 std::placeholders::_1),
 		       maxmsglen)),
       servcb_(std::forward<T>(t)) {}
-  rpc_sock(pollset &ps, sock_t s) : rpc_sock(ps, s, rcb_t(nullptr)) {}
+  rpc_sock(pollset &ps, sock_t s, size_t maxmsglen = msg_sock::default_maxmsglen) : rpc_sock(ps, s, rcb_t(nullptr), maxmsglen) {}
   ~rpc_sock() { abort_all_calls(); }
   template<typename T> void set_servcb(T &&scb) {
     servcb_ = std::forward<T>(scb);
