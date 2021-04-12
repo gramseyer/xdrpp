@@ -1895,7 +1895,12 @@ std::string get_srpc_obj_flattened_pyname(const rpc_vers& version) {
 }
 
 void gen_srpc_client_method_pxdi(std::ostream& os, const rpc_proc& proc) {
-  os << nl << proc.res << " " << proc.id << "(";
+
+  std::string out_type = proc.res;
+  if (proc.res != "void") {
+    out_type = std::string("unique_ptr[") + c_typename_prefix + proc.res + "]";
+  }
+  os << nl << out_type << " " << proc.id << "(";
 
   bool first = true;
   for (auto& arg : proc.arg) {
@@ -1909,7 +1914,14 @@ void gen_srpc_client_method_pxdi(std::ostream& os, const rpc_proc& proc) {
 }
 
 void gen_srpc_client_method_pxd(std::ostream& os, const rpc_proc& proc) {
-   os << nl << "cdef _" << proc.id << "(self";
+  std::string out_type = proc.res;
+  if (proc.res != "void") {
+    out_type = std::string("unique_ptr[") + c_typename_prefix + proc.res + "] "; // extra space at end
+  } else {
+    out_type = "";
+  }
+
+  os << nl << "cdef " << out_type << "_" << proc.id << "(self";
 
   for (size_t i = 0; i < proc.arg.size(); i++) {
     os << ", "  << proc.arg[i] << " arg" << i;
@@ -1918,8 +1930,16 @@ void gen_srpc_client_method_pxd(std::ostream& os, const rpc_proc& proc) {
 }
 
 void gen_srpc_client_method_pyx(std::ostream& os, const rpc_proc& proc) {
+  std::string out_type = proc.res;
+  bool has_out = false;
+  if (proc.res != "void") {
+    out_type = std::string("unique_ptr[") + c_typename_prefix + proc.res + "] "; // extra space at end
+    has_out = true;
+  } else {
+    out_type = "";
+  }
 
-  os << nl << "cdef _" << proc.id << "(self";
+  os << nl << "cdef " << out_type << "_" << proc.id << "(self";
 
   for (size_t i = 0; i < proc.arg.size(); i++) {
     os << ", "  << proc.arg[i] << " arg" << i;
@@ -1927,7 +1947,11 @@ void gen_srpc_client_method_pyx(std::ostream& os, const rpc_proc& proc) {
   os << "):";
   ++nl;
     gen_null_check_pyx(os);
-    os << nl << "deref(self.ptr)." << proc.id << "(";
+    if (has_out) {
+      os << nl << "return deref(self.ptr)." << proc.id << "(";
+    } else {
+      os << nl << "deref(self.ptr)." << proc.id << "(";
+    }
     for (size_t i = 0; i < proc.arg.size(); i++) {
       if (i > 0) {
         os << ", ";
@@ -1943,7 +1967,14 @@ void gen_srpc_client_method_pyx(std::ostream& os, const rpc_proc& proc) {
   }
   os << "):";
   ++nl;
-    os << nl << "self._" << proc.id << "(";
+    if (has_out) {
+
+      os << nl << "return " << proc.res << ".from_ptr(";
+    } else {
+      os << nl;
+    }
+    os << "self._" << proc.id << "(";
+    //function args
     for (size_t i = 0; i < proc.arg.size(); i++) {
       if (i > 0) {
         os << ", ";
@@ -1951,6 +1982,9 @@ void gen_srpc_client_method_pyx(std::ostream& os, const rpc_proc& proc) {
       os << "arg" << i;
     }
     os << ")";
+    if (has_out) {
+      os << ".release(), True)";
+    }
   --nl;
 
 }
@@ -2055,7 +2089,8 @@ void gen_header_pxdi(std::ostream& os) {
   gen_header_common(os);
 
   os << "from libc.stdint cimport *" << endl
-     << "from libcpp cimport bool" << endl;
+     << "from libcpp cimport bool" << endl
+     << "from libcpp.memory cimport *" << endl;
 }
 
 void gen_header_pyx(std::ostream& os) {
@@ -2064,6 +2099,7 @@ void gen_header_pyx(std::ostream& os) {
   os << "from libcpp cimport bool" << endl
      << "from libc.stdint cimport *" << endl
      << "from libcpp.string cimport *" << endl
+     << "from libcpp.memory cimport *" << endl
      << "from cython.operator cimport dereference as deref" << endl
      << "from cython.operator cimport address as addr" << endl;
 }
@@ -2073,7 +2109,8 @@ void gen_header_pxd(std::ostream& os) {
 
   os << "from libcpp cimport bool" << endl
      << "from libc.stdint cimport *" << endl
-     << "from libcpp.string cimport *" << endl;
+     << "from libcpp.string cimport *" << endl
+     << "from libcpp.memory cimport *" << endl;
 
 }
 
