@@ -2291,6 +2291,7 @@ void gen_pxd(std::ostream& os)
   
   gen_native_type_wrapper_pxd(os, "uint8_t", file_prefix);
   gen_native_type_wrapper_pxd(os, "char", file_prefix);
+  gen_native_type_wrapper_pxd(os, "float", file_prefix);
 
   //os << nl << "from " << file_prefix << "_includes cimport *" << endl;
 
@@ -2336,6 +2337,7 @@ void gen_pyx(std::ostream& os, const std::string& file_prefix) {
 
   gen_native_type_wrapper_pyx(os, "uint8_t", file_prefix);
   gen_native_type_wrapper_pyx(os, "char", file_prefix);
+  gen_native_type_wrapper_pyx(os, "float", file_prefix);
 
   gen_total_flattened_decls_pyx(os, file_prefix);
 
