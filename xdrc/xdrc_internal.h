@@ -247,6 +247,10 @@ string strip_suffix(string in, string suffix);
 void gen_hh(std::ostream &os);
 void gen_server(std::ostream &os);
 void gen_servercc(std::ostream &os);
+void gen_pxd(std::ostream &os);
+void gen_pyx(std::ostream &os);
+void gen_pxdi(std::ostream& os);
+
 
 extern string input_file;
 extern string output_file;
@@ -254,6 +258,7 @@ extern string file_prefix;
 extern string server_session;
 extern bool server_ptr;
 extern bool server_async;
+extern bool pxdi_union_helper_methods;
 
 template <typename T>
 struct omanip {

@@ -20,6 +20,7 @@ string server_session;
 bool server_ptr;
 bool server_async;
 bool opt_pedantic;
+bool pxdi_union_helper_methods;
 
 string
 guard_token(const string &extra)
@@ -107,6 +108,10 @@ enum opttag {
   OPT_SERVERHH,
   OPT_SERVERCC,
   OPT_PEDANTIC,
+  OPT_PXD_INCLUDE,
+  OPT_PXD,
+  OPT_PYX,
+  OPT_HH_PY,
 };
 
 static const struct option xdrc_options[] = {
@@ -119,6 +124,10 @@ static const struct option xdrc_options[] = {
   {"session", required_argument, nullptr, 's'},
   {"async", no_argument, nullptr, 'a'},
   {"pedantic", no_argument, nullptr, OPT_PEDANTIC},
+  {"pxdi", no_argument, nullptr, OPT_PXD_INCLUDE},
+  {"pxd", no_argument, nullptr, OPT_PXD},
+  {"pyx", no_argument, nullptr, OPT_PYX},
+  {"hhpy", no_argument, nullptr, OPT_HH_PY},
   {nullptr, 0, nullptr, 0}
 };
 
@@ -185,6 +194,25 @@ main(int argc, char **argv)
       break;
     case 's':
       server_session = optarg;
+      break;
+    case OPT_PXD_INCLUDE:
+      cpp_command += " -DXDRC_PXDI=1";
+      suffix = "_includes.pxd";
+      gen = gen_pxdi;
+      break;
+    case OPT_PXD:
+      cpp_command += " -DXDRC_PXD=1";
+      suffix = "_xdr.pxd";
+      gen = gen_pxd;
+      break;
+    case OPT_PYX:
+      cpp_command += " -DXDRC_PYX=1";
+      suffix = "_xdr.pyx";
+      gen = gen_pyx;
+      break;
+    case OPT_HH_PY:
+      cpp_command += " -DXDRC_HH_PY=1";
+      pxdi_union_helper_methods = true;
       break;
     default:
       usage();
