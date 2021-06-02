@@ -2228,7 +2228,7 @@ void gen_pxdi_util_methods(std::ostream& os) {
   os << nl << "cdef extern from \"<xdrpp/marshal.cc>\":"
      << nl << "  pass";
 
-  os << nl << "cdef extern from <xdrpy_utils.h>:";
+  os << nl << "cdef extern from \"<xdrpp/xdrpy_utils.h>\":";
   ++nl;
     for (auto& s : util_method_classnames) {
       os << nl << "cdef int load_xdr_from_file(" << s << "& output, const char* filename)";
