@@ -209,8 +209,6 @@ main(int argc, char **argv)
       gen = gen_pyx;
       break;
     case OPT_HH_PY:
-      if (gen)  
-        usage();
       cpp_command += " -DXDRC_HH_PY=1";
       pxdi_union_helper_methods = true;
       break;
