@@ -37,8 +37,6 @@ read_message(sock_t s)
     throw xdr_bad_message_size("read_message: premature EOF");
   if (len & 3)
     throw xdr_bad_message_size("read_message: received size not multiple of 4");
-  if (n >= 0x80000000)
-    throw xdr_bad_message_size("read_message: received size too big");
 
   len = swap32le(len);
   if (len & 0x80000000)

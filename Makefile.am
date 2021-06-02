@@ -5,7 +5,9 @@ AM_CPPFLAGS = $(cereal_CPPFLAGS) $(autocheck_CPPFLAGS)
 bin_PROGRAMS = xdrc/xdrc
 
 xdrc_xdrc_SOURCES = xdrc/xdrc.cc xdrc/gen_hh.cc xdrc/gen_server.cc	\
-	xdrc/scan.ll xdrc/parse.yy xdrc/union.h xdrc/xdrc_internal.h xdrc/gen_py.cc
+	xdrc/scan.ll xdrc/parse.yy xdrc/union.h xdrc/xdrc_internal.h \
+	xdrc/gen_py.cc
+
 if NEED_GETOPT_LONG
 xdrc_xdrc_SOURCES += compat/getopt_long.c compat/getopt.h
 endif # ! NEED_GETOPT_LONG

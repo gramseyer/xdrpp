@@ -248,8 +248,8 @@ void gen_hh(std::ostream &os);
 void gen_server(std::ostream &os);
 void gen_servercc(std::ostream &os);
 void gen_pxd(std::ostream &os);
-void gen_pyx(std::ostream &os, const std::string& file_prefix);
-void gen_pxdi(std::ostream& os, const std::string& file_prefix);
+void gen_pyx(std::ostream &os);
+void gen_pxdi(std::ostream& os);
 
 extern string input_file;
 extern string output_file;
@@ -288,3 +288,5 @@ struct indenter : omanip<indenter> {
   void operator++() { level_ += 2; }
   void operator--() { level_ -= 2; assert (level_ >= 0); }
 };
+
+extern bool had_warnings;

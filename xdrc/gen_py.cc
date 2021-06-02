@@ -2227,8 +2227,7 @@ string parse_included_filename(string literal) {
 void gen_pxdi_util_methods(std::ostream& os) {
   os << nl << "cdef extern from \"<xdrpp/marshal.cc>\":"
      << nl << "  pass";
-
-  os << nl << "cdef extern from \"utils.h\" namespace \"::edce\":";
+  os << nl << "cdef extern from <xdrpy_utils.h>:";
   ++nl;
     for (auto& s : util_method_classnames) {
       os << nl << "cdef int load_xdr_from_file(" << s << "& output, const char* filename)";
@@ -2245,12 +2244,9 @@ void gen_pxdi_util_methods(std::ostream& os) {
     }*/
 }
 
-void gen_pxdi(std::ostream& os, const std::string& file_prefix_in)
+void gen_pxdi(std::ostream& os)
 {
-
-  auto file_prefix = file_prefix_in;
   gen_header_pxdi(os);
-
   gen_total_flattened_decls_pxdi(os, file_prefix);
 
   for (const auto &s : symlist) {
@@ -2329,7 +2325,8 @@ void gen_pxd(std::ostream& os)
 }
 
 
-void gen_pyx(std::ostream& os, const std::string& file_prefix) {
+
+void gen_pyx(std::ostream& os) {
   gen_header_pyx(os);
   os << "# sketchy hack" << endl;
 

@@ -326,6 +326,12 @@ contains the following fields:
     defined to 1, if you wish to test for xdrc vs. other RPC
     compilers.)
 
+\-pedantic
+:	By default, certain slight deviations from RFC4506, such as
+	leaving a comma after the last element of an enum, are treated as
+	warnings rather than errors.  With the `-pedantic` flag, all
+	warnings become errors.
+
 # EXAMPLES
 
 Consider the following XDR program definition in a file myprog.x:
@@ -367,14 +373,15 @@ port with rpcbind) as follows:
     #include "xdrpp/myprog.server.h"
 
     using namespace xdr;
+    pollset ps;
 
     int
     main(int argc, char **argv)
     {
       MyProg1_server s;
-      srpc_tcp_listener rl;
+      srpc_tcp_listener<> rl(ps);
       rl.register_service(s);
-      rl.run();
+      ps.run();
       return 1;
     }
 

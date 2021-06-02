@@ -19,8 +19,8 @@ string file_prefix;
 string server_session;
 bool server_ptr;
 bool server_async;
+bool opt_pedantic;
 bool pxdi_union_helper_methods;
-
 
 string
 guard_token(const string &extra)
@@ -107,6 +107,7 @@ enum opttag {
   OPT_HH,
   OPT_SERVERHH,
   OPT_SERVERCC,
+  OPT_PEDANTIC,
   OPT_PXD_INCLUDE,
   OPT_PXD,
   OPT_PYX,
@@ -117,15 +118,16 @@ static const struct option xdrc_options[] = {
   {"version", no_argument, nullptr, OPT_VERSION},
   {"help", no_argument, nullptr, OPT_HELP},
   {"hh", no_argument, nullptr, OPT_HH},
-  {"hhpy", no_argument, nullptr, OPT_HH_PY},
   {"serverhh", no_argument, nullptr, OPT_SERVERHH},
   {"servercc", no_argument, nullptr, OPT_SERVERCC},
-  {"pxdi", no_argument, nullptr, OPT_PXD_INCLUDE},
-  {"pxd", no_argument, nullptr, OPT_PXD},
-  {"pyx", no_argument, nullptr, OPT_PYX},
   {"ptr", no_argument, nullptr, 'p'},
   {"session", required_argument, nullptr, 's'},
   {"async", no_argument, nullptr, 'a'},
+  {"pedantic", no_argument, nullptr, OPT_PEDANTIC},
+  {"pxdi", no_argument, nullptr, OPT_PXD_INCLUDE},
+  {"pxd", no_argument, nullptr, OPT_PXD},
+  {"pyx", no_argument, nullptr, OPT_PYX},
+  {"hhpy", no_argument, nullptr, OPT_HH_PY},
   {nullptr, 0, nullptr, 0}
 };
 
@@ -152,7 +154,7 @@ main(int argc, char **argv)
       break;
     case 'o':
       if (!output_file.empty())
-	usage();
+        usage();
       output_file = optarg;
       break;
     case OPT_VERSION:
@@ -164,7 +166,7 @@ main(int argc, char **argv)
       break;
     case OPT_SERVERHH:
       if (gen)
-	usage();
+        usage();
       gen = gen_server;
       cpp_command += " -DXDRC_SERVER=1";
       suffix = ".server.hh";
@@ -172,7 +174,7 @@ main(int argc, char **argv)
       break;
     case OPT_SERVERCC:
       if (gen)
-	usage();
+        usage();
       gen = gen_servercc;
       cpp_command += " -DXDRC_SERVER=1";
       suffix = ".server.cc";
@@ -180,29 +182,40 @@ main(int argc, char **argv)
       break;
     case OPT_HH:
       if (gen)
-	usage();
+        usage();
       gen = gen_hh;
       cpp_command += " -DXDRC_HH=1";
       suffix = ".hh";
       break;
     case OPT_PXD_INCLUDE:
+      if (gen)  
+        usage();
       cpp_command += " -DXDRC_PXDI=1";
       suffix = "_includes.pxd";
-      pxd_include = true;
+      gen = gen_pxdi;
       break;
     case OPT_PXD:
+      if (gen)  
+        usage();
       cpp_command += " -DXDRC_PXD=1";
       suffix = "_xdr.pxd";
-      pxd = true;
+      gen = gen_pxd;
       break;
     case OPT_PYX:
+      if (gen)  
+        usage();
       cpp_command += " -DXDRC_PYX=1";
       suffix = "_xdr.pyx";
-      pyx = true;
+      gen = gen_pyx;
       break;
     case OPT_HH_PY:
+      if (gen)  
+        usage();
       cpp_command += " -DXDRC_HH_PY=1";
       pxdi_union_helper_methods = true;
+      break;
+    case OPT_PEDANTIC:
+      opt_pedantic = true;
       break;
     case 'p':
       server_ptr = true;
@@ -245,6 +258,11 @@ main(int argc, char **argv)
   if (pclose(yyin))
     exit(1);
 
+  if (opt_pedantic && had_warnings) {
+    cerr << "Warnings treated as errors because of -pedantic flag" << endl;
+    exit(1);
+  }
+
   if (output_file.empty()) {
     output_file = strip_suffix(input_file, ".x");
     if (output_file == input_file)
@@ -270,21 +288,12 @@ main(int argc, char **argv)
   else {
     std::ofstream out(output_file);
     if (out.is_open())
-
-      if (pxd) {
-        gen_pxd(out);
-      } else if (pyx) {
-        gen_pyx(out, file_prefix);
-      } else if (pxd_include) {
-        gen_pxdi(out, file_prefix);
-      } else {
         gen(out);
-      }
     else {
       perror(output_file.c_str());
       exit(1);
     }
-  }   
+  }
 
   return 0;
 }
