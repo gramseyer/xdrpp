@@ -1242,7 +1242,7 @@ void gen_union_access_methods_pyx(std::ostream& os, const std::string& mainclass
     gen_null_check_pyx(os);
     gen_null_check_pyx(os, "other");
 
-    os << nl << "deref(self.ptr).pxdi_set_" << d.id << "(other.get_xdr())";
+    os << nl << "deref(self.ptr)._pxdi_set_" << d.id << "(other.get_xdr())";
    //   os << nl << "deref(addr(deref(self.ptr)." << d.id << "())) = other.get_xdr()"; // why is cython like this
   --nl;
 
@@ -1803,7 +1803,7 @@ void gen_union_pxdi(std::ostream& os, const rpc_union& u, const std::string& fil
     }
     gen_subtype_pxdi(os, ufield.decl, file_prefix);
     os << nl << c_typename_prefix << field_type << "& " << ufield.decl.id << "() except +";
-    os << nl << "void pxdi_set_" << ufield.decl.id << "(const " << c_typename_prefix << field_type << "&) except +";
+    os << nl << "void _pxdi_set_" << ufield.decl.id << "(const " << c_typename_prefix << field_type << "&) except +";
   }
 
   nested_decl_names.pop_back();
@@ -2227,7 +2227,7 @@ string parse_included_filename(string literal) {
 void gen_pxdi_util_methods(std::ostream& os) {
   os << nl << "cdef extern from \"<xdrpp/marshal.cc>\":"
      << nl << "  pass";
-  os << nl << "cdef extern from <xdrpy_utils.h>:";
+  os << nl << "cdef extern from \"<xdrpp/xdrpy_utils.h>\":";
   ++nl;
     for (auto& s : util_method_classnames) {
       os << nl << "cdef int load_xdr_from_file(" << s << "& output, const char* filename)";
