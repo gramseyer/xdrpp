@@ -26,7 +26,7 @@ unions need a few extra methods in the .hh file.
 Designed for python3.8.  YMMV on other versions of python.
 
 To build, generate the above cython files and .hh files, then cythonize them into an importable python module.
-An example build script is included in xdrpp/setup.py (this should be copied into the directory where the cython
+An example build script is included in setup.py (this should be copied into the directory where the cython
 files are built).  Example usage: 'python3 setup.py build_ext --inplace (-j 4) --pyx_files="$(PYX_FILES)"', where $(PYX_FILES)
 lists only the .pyx files.
 
