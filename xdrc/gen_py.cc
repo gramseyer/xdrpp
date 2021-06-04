@@ -222,12 +222,13 @@ cur_ns()
   return out.empty() ? "::" : out;
 }
 
+/*
 string cur_flat_ns() {
   string out;
   for (const auto &ns : namespaces)
     out += string("_") + ns;
   return out.empty() ? "_" : out;
-}
+} */
 
 
 string flatten_namespaces(string input) {
@@ -328,19 +329,22 @@ bool needs_flattened_declaration(const rpc_decl &d) {
     case rpc_decl::VEC:
     case rpc_decl::PTR:
       return true;
+    default:
+      return false;
   }
-  return false;
 }
 
+/*
 bool needs_subtype_declaration(const rpc_decl &d) {
   switch (d.ts_which) {
     case rpc_decl::TS_ENUM:
     case rpc_decl::TS_STRUCT:
     case rpc_decl::TS_UNION:
       return true;
+    default:
+      return false;
   }
-  return false;
-}
+} */
 
 string py_qualifier(const string& type) {
   string out = string("");
@@ -454,7 +458,7 @@ void gen_native_type_wrapper_pxd(std::ostream& os, const string& raw_typename, c
 }
 
 
-
+/*
 string
 cur_scope()
 {
@@ -466,7 +470,7 @@ cur_scope()
     out += scope.back();
   }
   return out;
-}
+} */
 
 string xdr_nested_decl_name() {
   auto out = string("");
@@ -480,6 +484,7 @@ string xdr_nested_decl_name() {
   return out;
 }
 
+/*
 string cpp_syntax_nested_decl_name() {
   auto out = string("");
   for (auto& scope : nested_decl_names) {
@@ -487,6 +492,7 @@ string cpp_syntax_nested_decl_name() {
   }
   return out;
 }
+*/
 
 string py_nested_decl_name_for_subtype_import() {
   auto out = py_nested_decl_name();
@@ -1015,7 +1021,7 @@ void gen_array_pxd(std::ostream& os, const rpc_decl& d, const std::string& file_
 
 
 void gen_flattened_decl_pyx(std::ostream& os, const rpc_decl& d, const std::string& file_prefix) {
-    if (generated_flattened_types.find(py_type(d, file_prefix))== generated_flattened_types.end()) {
+  if (generated_flattened_types.find(py_type(d, file_prefix))== generated_flattened_types.end()) {
     generated_flattened_types.insert(py_type(d, file_prefix));
     switch(d.qual) {
       case rpc_decl::ARRAY:
@@ -1023,6 +1029,9 @@ void gen_flattened_decl_pyx(std::ostream& os, const rpc_decl& d, const std::stri
         break;
       case rpc_decl::VEC:
         gen_vector_pyx(os, d, file_prefix);
+        break;
+      default:
+        //nothing to do, need default case to suppress warning
         break;
     }
   }
@@ -1037,6 +1046,9 @@ void gen_flattened_decl_pxd(std::ostream& os, const rpc_decl& decl, const std::s
         break;
       case rpc_decl::VEC:
         gen_vector_pxd(os, decl, file_prefix);
+        break;
+      default:
+        //nothing to do
         break;
     }
   }
@@ -1058,6 +1070,9 @@ void gen_flattened_decl_pxdi(std::ostream& os, const rpc_decl& decl, const std::
           gen_vector_pxdi(os, decl, file_prefix);
         //}
         break;
+      default:
+        //nothing to do
+        break;
     }
   }
 }
@@ -1074,11 +1089,7 @@ void gen_enum_pxdi(std::ostream& os, const rpc_enum& e, const std::string& file_
     qualified_name = cur_ns() + "::" + qualified_name;
   }
 
-  //if (namespaces.size()) {
-    os << nl << "cdef enum " << c_typename_prefix << e.id << " \"" <<qualified_name<< "\":";
-  //} else {
-  //  os << nl << "cdef enum " << c_typename_prefix << e.id << ":";
- //}
+  os << nl << "cdef enum " << c_typename_prefix << e.id << " \"" <<qualified_name<< "\":";
 
   ++nl;
   for (const auto &tag : e.tags) {
@@ -1350,6 +1361,9 @@ void gen_flattened_decls_pxd(std::ostream& os, const rpc_decl& decl, const std::
     case rpc_decl::TS_UNION:
       gen_flattened_decls_pxd(os, *decl.ts_union, file_prefix);
       break;
+    default:
+      //nothing to do
+      break;
   }
 }
 
@@ -1386,6 +1400,9 @@ void gen_flattened_decls_pxdi(std::ostream& os, const rpc_decl& decl, const std:
       break;
     case rpc_decl::TS_UNION:
       gen_flattened_decls_pxdi(os, *decl.ts_union, file_prefix);
+      break;
+    default:
+      //nothing to do
       break;
   }
 }
@@ -1437,6 +1454,9 @@ void gen_flattened_decls_pyx(std::ostream& os, const rpc_decl& decl, const std::
     case rpc_decl::TS_UNION:
       gen_flattened_decls_pyx(os, *decl.ts_union, file_prefix);
       break;
+    default:
+      //nothing to do
+      break;
   }
 }
 
@@ -1450,6 +1470,9 @@ bool gen_subtype_pxdi(std::ostream& os, const rpc_decl& d, const std::string& fi
     case rpc_decl::TS_UNION:
       gen_union_pxdi(os, *d.ts_union, file_prefix, true);
       return true;
+    default:
+      //nothing to do
+      break;
   }
   return false;
 }
@@ -1468,6 +1491,9 @@ bool gen_subtype_pxd(std::ostream& os, const rpc_decl& d, const std::string& fil
       os << nl << "from " << filename << "_includes cimport " << c_typename_prefix << py_nested_decl_name_for_subtype_import() << endl;;
       gen_union_pxd(os, *d.ts_union, new_file_prefix, true);
       return true;
+    default:
+      //nothing to do
+      break;
   }
   return false;
 }
@@ -1484,6 +1510,9 @@ bool gen_subtype_pyx(std::ostream& os, const rpc_decl& d, const std::string& fil
       os << nl << "from " << filename << "_includes cimport " << c_typename_prefix << py_nested_decl_name_for_subtype_import() << endl;;
       gen_union_pyx(os, *d.ts_union, new_file_prefix, true);
       return true;
+    default:
+      //nothing to do
+      break;
   }
   return false;
 }
@@ -2364,6 +2393,8 @@ void gen_pyx(std::ostream& os) {
         break;
       case rpc_sym::CLOSEBRACE:
         namespaces.pop_back();
+        break;
+      default:
         break;
     }
   }
