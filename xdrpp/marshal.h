@@ -286,6 +286,8 @@ namespace detail {
 void bytes_to_void(const std::vector<uint8_t> &);
 void bytes_to_void(const std::vector<char> &);
 void bytes_to_void(const xdr::message_t &);
+template<size_t N>
+void bytes_to_void(const std::array<uint8_t, N> &);
 }
 
 //! The reverse of xdr::xdr_to_opaque.  For convenience, accepts the

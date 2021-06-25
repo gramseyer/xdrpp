@@ -418,11 +418,101 @@ template<uint32_t N> struct xdr_traits<opaque_array<N>> : xdr_traits_base {
 };
 
 
+template<typename T, uint32_t N>
+class fast_xvector : public std::array<T, N> {
+  using array = std::array<T, N>;
+
+  size_t size_ = 0u;
+
+  using iterator_t = array::iterator;
+
+public:
+
+  fast_xvector(size_t n)
+    : array()
+    , size_(n) {}
+
+  fast_xvector() = default;
+   // : array{} {}
+
+  fast_xvector(std::initializer_list<T> list)
+    : array{}
+    , size_(list.size()) {
+      for (auto i = 0u; i < size_; i++) {
+        (*this)[i] = T{*(list.begin() + i)};
+       // array[i] = T(list[i]);
+      }
+    }
+
+
+  static constexpr uint32_t max_size() { return N; }
+
+  static void check_size(size_t n) {
+    if (n > max_size()) {
+      throw xdr_overflow("xvector overflow");
+    }
+  }
+
+  size_t size() const {
+    return size_;
+  }
+
+  void append(const T* elems, size_t n) {
+    check_size(size_ + n);
+    for (auto i = 0u; i < n; i++) {
+      (*this)[i + size_] = elems[i]; 
+    }
+    size_ += n;
+  }
+
+  void resize(size_t n) {
+    size_ = n;
+  }
+
+  T &extend_at(uint32_t i) {
+    if (i >= N)
+      throw xdr_overflow("attempt to access invalid position in xdr::xvector");
+    if (i == this->size())
+      size_++;
+      //this->emplace_back();
+    return (*this)[i];
+  }
+
+
+  void push_back(const T& obj) {
+    check_size(size_ + 1);
+    (*this)[size_] = obj;
+    size_++;
+  }
+
+  void erase(iterator_t iter) {
+    auto offset = iter - this->begin();
+
+    for (auto i = offset; i < size_-1; i++) {
+      (*this)[i] = std::move((*this)[i+1]);
+    }
+    size_--;
+  }
+
+/*
+  T* data() {
+    return array::data();
+  }
+
+  const T* data() const {
+    return array::data();
+  }
+
+  using value_type = T;
+  */
+};
+
+
 //! A vector with a maximum size (returned by xvector::max_size()).
 //! Note that you can exceed the size, but an error will happen when
 //! marshaling or unmarshaling the data structure.
 template<typename T, uint32_t N = XDR_MAX_LEN>
-struct xvector : std::vector<T> {
+struct slow_xvector : std::vector<T> {
   using vector = std::vector<T>;
   using vector::vector;
 
@@ -451,6 +541,72 @@ struct xvector : std::vector<T> {
     vector::resize(n);
   }
 };
+
+namespace detail {
+//template<typename T, uint32_t N> struct has_fixed_size_t<fast_xvector<T, N>> : std::false_type {};
+//template<typename T, uint32_t N> struct has_fixed_size_t<slow_xvector<T, N>> : std::false_type {};
+
+template<typename T>
+struct is_recursively_constructible {
+  static constexpr bool value = true;
+};
+
+template<typename T, uint32_t N>
+struct is_recursively_constructible<fast_xvector<T, N>> {
+  static constexpr bool value = false;
+};
+
+template <typename T>
+struct is_complete_helper {
+    template <typename U>
+    static auto test(U*)  -> std::integral_constant<bool, sizeof(U) == sizeof(U)>;
+    static auto test(...) -> std::false_type;
+    using type = decltype(test((T*)0));
+};
+
+template <typename T>
+struct is_complete : is_complete_helper<T>::type {};
+}
+
+/*
+template<typename T, uint32_t N, class _enable = void>
+struct _vector_choice {
+};
+
+template<typename T, uint32_t N>
+struct _vector_choice<T, N, typename std::enable_if<detail::has_fixed_size_t<T>::value>::type> {
+  using vector_t = slow_xvector<T, N>;
+};
+
+template<typename T, uint32_t N>
+struct _vector_choice<T, N, typename std::enable_if<!detail::has_fixed_size_t<T>::value>::type> {
+  using vector_t = slow_xvector<T, N>;
+}; */
+
+template<typename T, uint32_t N>
+using xvector_ =  typename std::conditional<detail::is_complete<T>::value && N < 500,
+  fast_xvector<T, N>,
+  slow_xvector<T, N>>::type;
+
+
+template<typename T, uint32_t N = XDR_MAX_LEN>
+struct xvector : public xvector_<T, N> {
+
+  using xvector_<T, N>::xvector_;
+
+  //xvector(size_t n) : xvector_<T, N> (n) {}
+  //xvector() : xvector_<T, N>() {}
+
+  //using xvector_<T, N>::operator=;
+  //using xv = xvector_<T, N>;
+  //using xv::xv;
+
+  //using xvector_<T, N>::size;
+  //using xvector_<T, N>::size_type;
+};//_vector_choice<T, N>::vector_t {};
+
+//template<typename T, uint32_t N = XDR_MAX_LEN>
+//using xvector = typename _vector_choice<T, N>::vector_t;
 
 namespace detail {
 template<typename T> struct has_fixed_size_t<xvector<T>> : std::false_type {};
