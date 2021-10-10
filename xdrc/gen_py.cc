@@ -2262,6 +2262,10 @@ void gen_pxdi_util_methods(std::ostream& os) {
       os << nl << "cdef int load_xdr_from_file(" << s << "& output, const char* filename)";
       os << nl << "cdef int save_xdr_to_file(" << s << "& output, const char* filename)";
     }
+  if (util_method_classnames.size() == 0) {
+    os << nl << "pass";
+  }
+
   --nl;
 
   /*os << nl << "cdef extern from \"<xdrpp/srpc.cc\":"
