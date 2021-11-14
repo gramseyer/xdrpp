@@ -26,7 +26,7 @@ AM_PROG_LEX
 AC_CHECK_PROGS(YACC, 'bison -y', bison -y)
 AC_PROG_CC
 AM_PROG_CC_C_O
-AC_PROG_CXX([clang++ eg++ g++ c++ gpp aCC CC cxx cc++ cl.exe FCC KCC RCC xlC_r xlC])
+AC_PROG_CXX([g++ clang++ eg++ c++ gpp aCC CC cxx cc++ cl.exe FCC KCC RCC xlC_r xlC])
 AX_CXX_COMPILE_STDCXX(14,,mandatory)
 test -z "$WFLAGS" || CXXFLAGS="$CXXFLAGS $WFLAGS"
 AC_LANG(C++)
