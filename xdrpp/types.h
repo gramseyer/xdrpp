@@ -373,7 +373,7 @@ template<typename T, uint32_t N> struct xarray
   : std::array<T, size_t(N)> {
   using array = std::array<T, size_t(N)>;
   constexpr xarray() { array::fill(T{}); }
-  xarray(detail::no_clear_t) {}
+  constexpr xarray(detail::no_clear_t) {}
   xarray(const xarray &) = default;
   xarray &operator=(const xarray &) = default;
 
@@ -405,7 +405,13 @@ template<uint32_t N = XDR_MAX_LEN> struct opaque_array
   using xarray = xdr::xarray<std::uint8_t,N>;
   using xarray::xarray;
   // Pay a little performance to avoid heartbleed-type errors...
-  constexpr opaque_array() : xarray(detail::no_clear) { std::memset(this->data(), 0, N); }
+  constexpr opaque_array() : xarray(detail::no_clear) { 
+  	//std::memset(this->data(), 0, N);
+  	for (size_t i = 0; i < N; i++)
+  	{
+  		this -> data()[i] = 0;
+  	}
+  }
   opaque_array(detail::no_clear_t) : xarray(detail::no_clear) {}
 };
 template<uint32_t N> struct xdr_traits<opaque_array<N>> : xdr_traits_base {
