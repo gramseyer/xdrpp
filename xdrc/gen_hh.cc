@@ -445,7 +445,7 @@ gen(std::ostream &os, const rpc_union &u)
 
   // _xdr_with_mem_ptr
   os << nl << "template<typename _F, typename..._A> static bool"
-     << nl << "_xdr_with_mem_ptr(_F &_f, _xdr_case_type _which, _A&&..._a) {"
+     << nl << "constexpr _xdr_with_mem_ptr(_F &_f, _xdr_case_type _which, _A&&..._a) {"
      << nl.open << pswitch(u, "_which");
   for (const rpc_ufield &f : u.fields) {
     for (string c : f.cases)
