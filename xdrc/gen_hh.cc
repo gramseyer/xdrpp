@@ -504,7 +504,7 @@ gen(std::ostream &os, const rpc_union &u)
      << nl.close << "}";
 
   // Destructor
-  os << nl << "~" << u.id
+  os << nl << " constexpr ~" << u.id
      << "() { _xdr_with_mem_ptr(xdr::field_destructor, "
      << u.tagid << "_, *this); }";
 

@@ -994,10 +994,10 @@ Constexpr const field_constructor_t field_constructor {};
 struct field_destructor_t {
   Constexpr field_destructor_t() {}
   template<typename T, typename F> void
-  operator()(F T::*mp, T &t) const { detail::member(t, mp).~F(); }
+  constexpr operator()(F T::*mp, T &t) const { detail::member(t, mp).~F(); }
 };
 //! Passed to _xdr_with_mem_ptr to destroy the active union field.
-Constexpr const field_destructor_t field_destructor {};
+constexpr const field_destructor_t field_destructor {};
 
 struct field_assigner_t {
   Constexpr field_assigner_t() {}
