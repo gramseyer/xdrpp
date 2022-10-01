@@ -63,7 +63,10 @@ write_message(sock_t s, const msg_ptr &m)
   // If this assertion fails, the file descriptor may have had
   // O_NONBLOCK set, which is not allowed for the synchronous
   // interface.
-  assert(std::size_t(n) == m->raw_size());
+  if (std::size_t(n) != m->raw_size())
+  {
+    throw xdr_system_error("likely client disconnect during xdr::write_message");
+  }
 }
 
 uint32_t xid_counter;
