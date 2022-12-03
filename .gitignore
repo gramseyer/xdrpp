@@ -61,6 +61,8 @@
 /ylwrap
 xdrpp-*.tar.gz
 
+.DS_STORE
+
 #Windows specific
 **/x64/*
 
