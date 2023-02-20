@@ -26,7 +26,7 @@ namespace xdr {
 //! speculatively and reduce the number of system calls.
 class msg_sock {
 public:
-  static constexpr std::size_t default_maxmsglen = 0xa000000;
+  static constexpr std::size_t default_maxmsglen = 0x7fffffff;
   using rcb_t = std::function<void(msg_ptr)>;
 
   template<typename T> msg_sock(pollset &ps, sock_t s, T &&rcb,
