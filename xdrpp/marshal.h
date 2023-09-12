@@ -271,8 +271,9 @@ void
 append_xdr_to_opaque(T& buffer, const Args&... args)
 {
   auto sz = xdr_argpack_size(args...);
-  const auto prev_sz = buffer.size();
-  buffer.resize(buffer.size() + sz);
+  auto prev_sz = buffer.size();
+  prev_sz += 4-(prev_sz&3);
+  buffer.resize(prev_sz + sz);
   xdr_put p (buffer.data() + prev_sz, buffer.data() + prev_sz + sz);
   xdr_argpack_archive(p, args...);
   assert(p.p_ == p.e_);
