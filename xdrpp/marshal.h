@@ -266,6 +266,18 @@ xdr_to_opaque(const Args &...args)
   return m;
 }
 
+template<typename T, typename... Args>
+void
+append_xdr_to_opaque(T& buffer, const Args&... args)
+{
+  auto sz = xdr_argpack_size(args...);
+  const auto prev_sz = buffer.size();
+  buffer.resize(buffer.size() + sz);
+  xdr_put p (buffer.data() + prev_sz, buffer.data() + prev_sz + sz);
+  xdr_argpack_archive(p, args...);
+  assert(p.p_ == p.e_);
+}
+
 
 //! This does the reverse of xdr::xdr_to_msg, unmarshalling one or
 //! more types from a message.  Note that it throws an exception if
