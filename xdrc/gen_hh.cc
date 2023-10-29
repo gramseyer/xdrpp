@@ -283,8 +283,7 @@ gen(std::ostream &os, const rpc_enum &e)
     << "      return nullptr;" << endl
     << "    }" << endl
     << "  }" << endl
-    << "  static constexpr std::array<int32_t, " << e.tags.size() << "> enum_values() {" << endl
-    << "    static constexpr std::array<int32_t, " << e.tags.size() << "> _xdr_enum_vec = {";
+    << "  static constexpr std::array<int32_t, " << e.tags.size() << "> enum_values = {";
   bool first = true;
   for (const rpc_const &c : e.tags) {
     if (first)
@@ -293,13 +292,11 @@ gen(std::ostream &os, const rpc_enum &e)
       top_material << ",";
     top_material
       << endl
-      << "      " << myscope + c.id;
+      << "    " << myscope + c.id;
   }
   top_material
     << endl
-    << "    };" << endl
-    << "    return _xdr_enum_vec;" << endl
-    << "  }" << endl
+    << "  };" << endl
     << "};" << endl;
 }
 
