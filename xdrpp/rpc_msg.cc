@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <xdrpp/exception.h>
+#include <exception>
 
 namespace xdr {
 
